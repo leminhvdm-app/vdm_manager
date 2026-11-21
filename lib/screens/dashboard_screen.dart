@@ -218,21 +218,19 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
         title: Row(
           children: [
             Container(
-              width: 36,
-              height: 36,
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(10),
-                boxShadow: const [
+              width: 38,
+              height: 38,
+              decoration: const BoxDecoration(
+                shape: BoxShape.circle,
+                boxShadow: [
                   BoxShadow(color: Colors.black26, blurRadius: 4, offset: Offset(0, 1)),
                 ],
               ),
-              clipBehavior: Clip.antiAlias,
               child: Image.asset(
                 'assets/icon_app.png',
-                fit: BoxFit.cover,
+                fit: BoxFit.contain,
                 errorBuilder: (_, __, ___) => const Center(
-                  child: Icon(Icons.admin_panel_settings_rounded, color: Color(0xFF1B5E20), size: 22),
+                  child: Icon(Icons.admin_panel_settings_rounded, color: Colors.white, size: 22),
                 ),
               ),
             ),
