@@ -118,6 +118,45 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
   }
 
+  Future<void> _handleClearAllDatasetsFirebase() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.delete_forever_rounded, color: Colors.redAccent),
+            SizedBox(width: 8),
+            Text('Xóa toàn bộ Dữ liệu rừng?', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 17)),
+          ],
+        ),
+        content: const Text(
+          'Hành động này sẽ xóa VĨNH VIỄN toàn bộ tất cả các tập dữ liệu bản đồ Lô rừng đang lưu trên Firebase. Bạn có chắc chắn không?',
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Hủy')),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent, foregroundColor: Colors.white),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Xác nhận Xóa Hết'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true && mounted) {
+      final ok = await ManagerApiService.clearAllDatasets();
+      if (ok && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Đã xóa sạch toàn bộ tập dữ liệu rừng trên Firebase!'),
+            backgroundColor: Color(0xFF1B5E20),
+          ),
+        );
+        widget.onSaved();
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final bottomInset = MediaQuery.of(context).viewPadding.bottom > 0
@@ -265,6 +304,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       label: const Text('Làm sạch toàn bộ cán bộ & thiết bị trên Firebase', style: TextStyle(color: Colors.redAccent)),
                       style: OutlinedButton.styleFrom(
                         side: const BorderSide(color: Colors.redAccent),
+                        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    OutlinedButton.icon(
+                      onPressed: _handleClearAllDatasetsFirebase,
+                      icon: const Icon(Icons.folder_delete_rounded, color: Colors.deepOrange),
+                      label: const Text('Xóa toàn bộ tất cả Lô rừng trên Firebase', style: TextStyle(color: Colors.deepOrange)),
+                      style: OutlinedButton.styleFrom(
+                        side: const BorderSide(color: Colors.deepOrange),
                         padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
                       ),
                     ),

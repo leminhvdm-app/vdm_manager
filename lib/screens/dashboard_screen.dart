@@ -143,6 +143,100 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
     }
   }
 
+  Future<void> _confirmDeleteDataset(CloudDatasetItem dataset) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.warning_amber_rounded, color: Colors.redAccent),
+            SizedBox(width: 8),
+            Text('Xóa dữ liệu rừng?', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Bạn có chắc muốn xóa vĩnh viễn tập dữ liệu "${dataset.groupName}" khỏi máy chủ Firebase không?'),
+            const SizedBox(height: 10),
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.red.shade50,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.red.shade200),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('• Tên: ${dataset.groupName}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                  Text('• Mã: ${dataset.datasetKey}', style: TextStyle(fontSize: 11, color: Colors.grey.shade700)),
+                  Text('• Quy mô: ${dataset.plotCount} Lô rừng', style: TextStyle(fontSize: 12, color: Colors.green.shade800, fontWeight: FontWeight.w600)),
+                ],
+              ),
+            ),
+            const SizedBox(height: 6),
+            const Text(
+              'Dữ liệu sau khi xóa sẽ không thể phục hồi!',
+              style: TextStyle(fontSize: 11, color: Colors.redAccent, fontStyle: FontStyle.italic),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Hủy'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent, foregroundColor: Colors.white),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Xác nhận Xóa'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)),
+                const SizedBox(width: 12),
+                Text('Đang xóa "${dataset.groupName}" trên Firebase...'),
+              ],
+            ),
+            duration: const Duration(seconds: 15),
+          ),
+        );
+      }
+
+      final ok = await ManagerApiService.deleteDataset(dataset.datasetKey);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+        if (ok) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Đã xóa thành công tập dữ liệu "${dataset.groupName}".'),
+              backgroundColor: const Color(0xFF1B5E20),
+            ),
+          );
+          _loadData();
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Không thể xóa tập dữ liệu. Vui lòng kiểm tra lại mạng!'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    }
+  }
+
   List<String> _getAvailableUnits() {
     if (_dataBundle == null) return ['Tất cả'];
     final set = <String>{'Tất cả'};
@@ -911,6 +1005,11 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
                           ),
                         ],
                       ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.delete_outline_rounded, color: Colors.redAccent, size: 22),
+                      tooltip: 'Xóa tập dữ liệu này khỏi máy chủ',
+                      onPressed: () => _confirmDeleteDataset(ds),
                     ),
                   ],
                 ),

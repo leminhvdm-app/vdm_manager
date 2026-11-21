@@ -290,6 +290,41 @@ class ManagerApiService {
     }
   }
 
+  /// Xóa vĩnh viễn tập dữ liệu rừng khỏi Firebase trực tiếp trên app
+  static Future<bool> deleteDataset(String datasetKey) async {
+    try {
+      final base = baseUrl;
+      final encodedKey = Uri.encodeComponent(datasetKey);
+      await Future.wait([
+        http.delete(Uri.parse('$base/vdm_gis/datasets/$encodedKey.json')),
+        http.delete(Uri.parse('$base/datasets/$encodedKey.json')),
+        http.delete(Uri.parse('$base/vdm_gis/dataset_metadata/$encodedKey.json')),
+        http.delete(Uri.parse('$base/dataset_metadata/$encodedKey.json')),
+      ]);
+      await clearLocalCache();
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// Xóa toàn bộ tất cả tập dữ liệu rừng trên Firebase
+  static Future<bool> clearAllDatasets() async {
+    try {
+      final base = baseUrl;
+      await Future.wait([
+        http.delete(Uri.parse('$base/vdm_gis/datasets.json')),
+        http.delete(Uri.parse('$base/datasets.json')),
+        http.delete(Uri.parse('$base/vdm_gis/dataset_metadata.json')),
+        http.delete(Uri.parse('$base/dataset_metadata.json')),
+      ]);
+      await clearLocalCache();
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
   static Future<File> _getCacheFile() async {
     final dir = await getApplicationDocumentsDirectory();
     return File('${dir.path}/vdm_manager_offline_cache.json');
