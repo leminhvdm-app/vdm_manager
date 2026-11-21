@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
 import '../models/user_usage_model.dart';
@@ -44,117 +45,202 @@ class ManagerApiService {
     return clean;
   }
 
-  /// Tải dữ liệu từ endpoint với cache-busting timestamp
-  static Future<http.Response> _fetchFresh(String endpoint) async {
+  /// Tải dữ liệu từ endpoint với cache-busting timestamp và timeout linh hoạt
+  static Future<http.Response> _fetchFresh(String endpoint, {Duration timeout = const Duration(seconds: 15)}) async {
     final separator = endpoint.contains('?') ? '&' : '?';
     final freshUrl = '$endpoint${separator}t=${DateTime.now().millisecondsSinceEpoch}';
     return await http.get(
       Uri.parse(freshUrl),
       headers: {'Cache-Control': 'no-cache', 'Pragma': 'no-cache'},
-    ).timeout(const Duration(seconds: 8));
+    ).timeout(timeout);
   }
 
-  /// Tải dữ liệu toàn diện từ Firebase
-  static Future<ManagerDataBundle> fetchAllData({bool forceFresh = true}) async {
+  /// Tải danh sách Tập dữ liệu rừng tối ưu (Ưu tiên metadata siêu nhẹ, tránh tải toàn bộ polygon nặng gây timeout)
+  static Future<List<CloudDatasetItem>> _fetchDatasets(String base) async {
+    final List<CloudDatasetItem> datasetsList = [];
     try {
-      final base = baseUrl;
-
-      // 1. Tải danh sách Cán bộ (Ưu tiên /vdm_gis/thong_tin_su_dung_app.json)
-      http.Response usersRes = await _fetchFresh('$base/vdm_gis/thong_tin_su_dung_app.json');
-      if (usersRes.body == 'null' || usersRes.body.isEmpty) {
-        // Fallback kiểm tra node root nếu chưa có ở /vdm_gis/
-        final rootUsersRes = await _fetchFresh('$base/thong_tin_su_dung_app.json');
-        if (rootUsersRes.statusCode == 200 && rootUsersRes.body != 'null' && rootUsersRes.body.isNotEmpty) {
-          usersRes = rootUsersRes;
-        }
-      }
-
-      // 2. Tải danh sách Thiết bị (Ưu tiên /vdm_gis/thiet_bi_cai_dat.json)
-      http.Response devicesRes = await _fetchFresh('$base/vdm_gis/thiet_bi_cai_dat.json');
-      if (devicesRes.body == 'null' || devicesRes.body.isEmpty) {
-        final rootDevRes = await _fetchFresh('$base/thiet_bi_cai_dat.json');
-        if (rootDevRes.statusCode == 200 && rootDevRes.body != 'null' && rootDevRes.body.isNotEmpty) {
-          devicesRes = rootDevRes;
-        }
-      }
-
-      // 3. Tải danh sách Tập dữ liệu rừng (/vdm_gis/datasets.json)
-      http.Response datasetsRes = await _fetchFresh('$base/vdm_gis/datasets.json');
-      if (datasetsRes.body == 'null' || datasetsRes.body.isEmpty) {
-        final rootDsRes = await _fetchFresh('$base/datasets.json');
-        if (rootDsRes.statusCode == 200 && rootDsRes.body != 'null' && rootDsRes.body.isNotEmpty) {
-          datasetsRes = rootDsRes;
-        }
-      }
-
-      final List<UserUsageSummary> usersList = [];
-      if (usersRes.statusCode == 200 && usersRes.body.isNotEmpty && usersRes.body != 'null') {
-        final dynamic raw = jsonDecode(usersRes.body);
+      // 1. Thử tải từ node metadata siêu nhẹ (1KB, phản hồi ngay lập tức trong 0.2s)
+      final metaRes = await _fetchFresh('$base/vdm_gis/dataset_metadata.json', timeout: const Duration(seconds: 8));
+      if (metaRes.statusCode == 200 && metaRes.body != 'null' && metaRes.body.isNotEmpty) {
+        final dynamic raw = jsonDecode(metaRes.body);
         if (raw is Map) {
           raw.forEach((k, v) {
             if (v is Map) {
-              usersList.add(UserUsageSummary.fromFirebaseUserNode(
-                k.toString(),
-                Map<String, dynamic>.from(v),
-              ));
+              datasetsList.add(CloudDatasetItem.fromMap(k.toString(), Map<String, dynamic>.from(v)));
             }
           });
+          if (datasetsList.isNotEmpty) return datasetsList;
         }
       }
+    } catch (_) {}
 
-      // Sắp xếp người dùng theo số lần mở app giảm dần
-      usersList.sort((a, b) => b.tongSoLanMo.compareTo(a.tongSoLanMo));
-
-      final List<InstalledDeviceItem> devicesList = [];
-      if (devicesRes.statusCode == 200 && devicesRes.body.isNotEmpty && devicesRes.body != 'null') {
-        final dynamic raw = jsonDecode(devicesRes.body);
+    try {
+      // 2. Thử truy vấn shallow để lấy danh sách key cực nhanh (không tải toàn bộ polygon tọa độ nặng)
+      final shallowRes = await _fetchFresh('$base/vdm_gis/datasets.json?shallow=true', timeout: const Duration(seconds: 8));
+      if (shallowRes.statusCode == 200 && shallowRes.body != 'null' && shallowRes.body.isNotEmpty) {
+        final dynamic raw = jsonDecode(shallowRes.body);
         if (raw is Map) {
-          raw.forEach((k, v) {
-            if (v is Map) {
-              devicesList.add(InstalledDeviceItem.fromMap(
-                k.toString(),
-                Map<String, dynamic>.from(v),
-              ));
+          final keys = raw.keys.map((e) => e.toString()).toList();
+          final futures = keys.map((key) async {
+            try {
+              final encKey = Uri.encodeComponent(key);
+              final gNameRes = await _fetchFresh('$base/vdm_gis/datasets/$encKey/groupName.json', timeout: const Duration(seconds: 6));
+              final pCountRes = await _fetchFresh('$base/vdm_gis/datasets/$encKey/plotCount.json', timeout: const Duration(seconds: 6));
+              final dTagRes = await _fetchFresh('$base/vdm_gis/datasets/$encKey/deviceTag.json', timeout: const Duration(seconds: 6));
+              final upAtRes = await _fetchFresh('$base/vdm_gis/datasets/$encKey/updatedAt.json', timeout: const Duration(seconds: 6));
+
+              String gName = key;
+              if (gNameRes.statusCode == 200 && gNameRes.body != 'null') {
+                try { gName = jsonDecode(gNameRes.body).toString(); } catch (_) { gName = gNameRes.body.replaceAll('"', ''); }
+              }
+              int pCount = 0;
+              if (pCountRes.statusCode == 200 && pCountRes.body != 'null') {
+                pCount = int.tryParse(pCountRes.body) ?? 0;
+              }
+              String dTag = '--';
+              if (dTagRes.statusCode == 200 && dTagRes.body != 'null') {
+                try { dTag = jsonDecode(dTagRes.body).toString(); } catch (_) { dTag = dTagRes.body.replaceAll('"', ''); }
+              }
+              String upAt = '';
+              if (upAtRes.statusCode == 200 && upAtRes.body != 'null') {
+                try { upAt = jsonDecode(upAtRes.body).toString(); } catch (_) { upAt = upAtRes.body.replaceAll('"', ''); }
+              }
+
+              return CloudDatasetItem(
+                datasetKey: key,
+                groupName: gName,
+                deviceTag: dTag,
+                plotCount: pCount,
+                poiCount: 0,
+                updatedAt: upAt,
+              );
+            } catch (_) {
+              return CloudDatasetItem(
+                datasetKey: key,
+                groupName: key,
+                deviceTag: '--',
+                plotCount: 0,
+                poiCount: 0,
+                updatedAt: '',
+              );
             }
           });
+
+          final results = await Future.wait(futures);
+          return results;
         }
       }
+    } catch (_) {}
 
-      final List<CloudDatasetItem> datasetsList = [];
-      if (datasetsRes.statusCode == 200 && datasetsRes.body.isNotEmpty && datasetsRes.body != 'null') {
-        final dynamic raw = jsonDecode(datasetsRes.body);
-        if (raw is Map) {
-          raw.forEach((k, v) {
-            if (v is Map) {
-              datasetsList.add(CloudDatasetItem.fromMap(
-                k.toString(),
-                Map<String, dynamic>.from(v),
-              ));
-            }
-          });
+    return datasetsList;
+  }
+
+  /// Tải dữ liệu toàn diện từ Firebase (Song song, chịu lỗi cao, không bao giờ bị đơ vì tập dữ liệu lớn)
+  static Future<ManagerDataBundle> fetchAllData({bool forceFresh = true}) async {
+    final base = baseUrl;
+    String usersBody = '';
+    String devicesBody = '';
+    String datasetsBody = '';
+
+    // 1. Tải danh sách Cán bộ (vdm_gis/thong_tin_su_dung_app.json)
+    final Future<List<UserUsageSummary>> usersFuture = () async {
+      final List<UserUsageSummary> list = [];
+      try {
+        http.Response res = await _fetchFresh('$base/vdm_gis/thong_tin_su_dung_app.json');
+        if (res.body == 'null' || res.body.isEmpty) {
+          final rootRes = await _fetchFresh('$base/thong_tin_su_dung_app.json');
+          if (rootRes.statusCode == 200 && rootRes.body != 'null' && rootRes.body.isNotEmpty) {
+            res = rootRes;
+          }
         }
+        if (res.statusCode == 200 && res.body.isNotEmpty && res.body != 'null') {
+          usersBody = res.body;
+          final dynamic raw = jsonDecode(res.body);
+          if (raw is Map) {
+            raw.forEach((k, v) {
+              if (v is Map) {
+                list.add(UserUsageSummary.fromFirebaseUserNode(
+                  k.toString(),
+                  Map<String, dynamic>.from(v),
+                ));
+              }
+            });
+          }
+        }
+        list.sort((a, b) => b.tongSoLanMo.compareTo(a.tongSoLanMo));
+      } catch (e) {
+        debugPrint('Lỗi tải Cán bộ từ Firebase: $e');
       }
+      return list;
+    }();
 
-      final bundle = ManagerDataBundle(
-        users: usersList,
-        devices: devicesList,
-        datasets: datasetsList,
-        fetchedAt: DateTime.now(),
-        isFromCache: false,
-      );
+    // 2. Tải danh sách Thiết bị (vdm_gis/thiet_bi_cai_dat.json)
+    final Future<List<InstalledDeviceItem>> devicesFuture = () async {
+      final List<InstalledDeviceItem> list = [];
+      try {
+        http.Response res = await _fetchFresh('$base/vdm_gis/thiet_bi_cai_dat.json');
+        if (res.body == 'null' || res.body.isEmpty) {
+          final rootRes = await _fetchFresh('$base/thiet_bi_cai_dat.json');
+          if (rootRes.statusCode == 200 && rootRes.body != 'null' && rootRes.body.isNotEmpty) {
+            res = rootRes;
+          }
+        }
+        if (res.statusCode == 200 && res.body.isNotEmpty && res.body != 'null') {
+          devicesBody = res.body;
+          final dynamic raw = jsonDecode(res.body);
+          if (raw is Map) {
+            raw.forEach((k, v) {
+              if (v is Map) {
+                list.add(InstalledDeviceItem.fromMap(
+                  k.toString(),
+                  Map<String, dynamic>.from(v),
+                ));
+              }
+            });
+          }
+        }
+      } catch (e) {
+        debugPrint('Lỗi tải Thiết bị từ Firebase: $e');
+      }
+      return list;
+    }();
 
-      // Cập nhật lại cache offline với dữ liệu mới nhất (nếu người dùng xóa trên Firebase, cache cũng được xóa đồng bộ)
-      await _saveLocalCache(usersRes.body, devicesRes.body, datasetsRes.body);
+    // 3. Tải danh sách Tập dữ liệu rừng tối ưu (Không tải polygon nặng)
+    final Future<List<CloudDatasetItem>> datasetsFuture = _fetchDatasets(base);
 
-      return bundle;
-    } catch (e) {
-      // Nếu mất kết nối mạng hoặc lỗi server, tải từ cache offline
+    // Chạy đồng thời cả 3 tác vụ song song
+    final results = await Future.wait([usersFuture, devicesFuture, datasetsFuture]);
+    final usersList = results[0] as List<UserUsageSummary>;
+    final devicesList = results[1] as List<InstalledDeviceItem>;
+    final datasetsList = results[2] as List<CloudDatasetItem>;
+
+    // Nếu không lấy được cán bộ hay thiết bị (có thể do rớt mạng), thử lấy từ bộ nhớ đệm offline
+    if (usersList.isEmpty && devicesList.isEmpty) {
       final cachedBundle = await _loadLocalCache();
-      if (cachedBundle != null) {
+      if (cachedBundle != null && (cachedBundle.users.isNotEmpty || cachedBundle.devices.isNotEmpty)) {
         return cachedBundle;
       }
-      rethrow;
+      // Kiểm tra kết nối mạng
+      final isOnline = await testFirebaseConnection(base);
+      if (!isOnline) {
+        throw Exception('Không thể kết nối đến máy chủ Firebase. Vui lòng kiểm tra lại mạng 4G/Wifi hoặc URL máy chủ trong phần Cài đặt.');
+      }
     }
+
+    final bundle = ManagerDataBundle(
+      users: usersList,
+      devices: devicesList,
+      datasets: datasetsList,
+      fetchedAt: DateTime.now(),
+      isFromCache: false,
+    );
+
+    // Lưu vào bộ nhớ đệm offline
+    if (usersBody.isNotEmpty || devicesBody.isNotEmpty) {
+      await _saveLocalCache(usersBody, devicesBody, datasetsBody);
+    }
+
+    return bundle;
   }
 
   /// Xóa vĩnh viễn cán bộ khỏi Firebase trực tiếp trên app
