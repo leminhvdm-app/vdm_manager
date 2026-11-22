@@ -4,6 +4,7 @@ import '../models/user_usage_model.dart';
 import '../models/installed_device_model.dart';
 import '../models/cloud_dataset_model.dart';
 import '../services/manager_api_service.dart';
+import '../services/manager_app_update_service.dart';
 import 'officer_detail_screen.dart';
 import 'settings_screen.dart';
 
@@ -32,6 +33,9 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
       }
     });
     _loadData();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ManagerAppUpdateService.checkForUpdate(context, silent: true);
+    });
   }
 
   @override

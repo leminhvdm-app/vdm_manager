@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/manager_api_service.dart';
+import '../services/manager_app_update_service.dart';
 
 class SettingsScreen extends StatefulWidget {
   final VoidCallback onSaved;
@@ -341,11 +342,33 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     ),
                     const SizedBox(height: 12),
                     _buildAppInfoRow('Tên ứng dụng:', 'VDM Quản Lý (Admin Tool)'),
-                    _buildAppInfoRow('Phiên bản:', '1.0.1'),
+                    _buildAppInfoRow('Phiên bản:', '1.0.2'),
                     _buildAppInfoRow('Nhà phát triển:', 'Lê Minh'),
                     _buildAppInfoRow('Liên hệ:', 'leminh.vdm@gmail.com'),
                     _buildAppInfoRow('Hệ sinh thái:', 'VDM GIS - Lâm nghiệp 4.0'),
                     _buildAppInfoRow('Quy tắc giao diện:', 'Không che khuất bởi phím điều hướng hệ thống'),
+                    const SizedBox(height: 12),
+                    const Divider(),
+                    const SizedBox(height: 8),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
+                        onPressed: () {
+                          ManagerAppUpdateService.checkForUpdate(context, silent: false);
+                        },
+                        icon: const Icon(Icons.system_update_rounded),
+                        label: const Text(
+                          'Kiểm tra bản cập nhật mới',
+                          style: TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF2E7D32),
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        ),
+                      ),
+                    ),
                   ],
                 ),
               ),
