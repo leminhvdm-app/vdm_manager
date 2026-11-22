@@ -128,7 +128,7 @@ class ManagerAppUpdateService {
       if (!silent && context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Bạn đang sử dụng phiên bản mới nhất của VDM Quản Lý (v$currentVersionName)!'),
+            content: Text('Bạn đang sử dụng phiên bản mới nhất của VDM Quản Lý ($currentVersionName)!'),
             backgroundColor: const Color(0xFF1B5E20),
           ),
         );
@@ -189,10 +189,10 @@ class ManagerAppUpdateService {
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text('Hiện tại: v$currentVersionName',
+                        Text('Hiện tại: $currentVersionName',
                             style: const TextStyle(fontSize: 12, color: Colors.black54)),
                         const Icon(Icons.arrow_forward_rounded, size: 14, color: Colors.green),
-                        Text('Mới: v${info.versionName}',
+                        Text('Mới: ${info.versionName}',
                             style: const TextStyle(
                                 fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFF1B5E20))),
                       ],
