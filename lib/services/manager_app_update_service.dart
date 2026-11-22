@@ -74,9 +74,12 @@ class ManagerAppUpdateService {
       final base = (baseUrl != null && baseUrl.isNotEmpty) ? baseUrl : defaultFirebaseBaseUrl;
       final uri = Uri.parse('$base/vdm_gis/manager_app_update.json');
       final res = await http.get(uri).timeout(const Duration(seconds: 6));
-      if (res.statusCode == 200 && res.body.isNotEmpty && res.body != 'null') {
-        final map = jsonDecode(res.body) as Map<String, dynamic>;
-        return ManagerAppUpdateInfo.fromMap(map);
+      if (res.statusCode == 200 && res.bodyBytes.isNotEmpty) {
+        final decodedString = utf8.decode(res.bodyBytes);
+        if (decodedString.isNotEmpty && decodedString != 'null') {
+          final map = jsonDecode(decodedString) as Map<String, dynamic>;
+          return ManagerAppUpdateInfo.fromMap(map);
+        }
       }
     } catch (e) {
       debugPrint('Lỗi kiểm tra cập nhật từ Firebase: $e');
