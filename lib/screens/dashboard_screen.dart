@@ -1020,7 +1020,7 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
                             onPressed: () async {
                               final scaffold = ScaffoldMessenger.of(context);
                               final newStatus = !d.isActivated;
-                              final ok = await ManagerApiService.setDeviceActivation(d.key, newStatus);
+                              final ok = await ManagerApiService.setDeviceActivation(d.key, newStatus, installCode: d.maCaiDat);
                               if (ok && mounted) {
                                 scaffold.showSnackBar(
                                   SnackBar(

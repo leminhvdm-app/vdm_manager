@@ -420,14 +420,18 @@ class ManagerApiService {
     }
   }
 
-  /// Kích hoạt hoặc hủy kích hoạt thiết bị từ xa trên Firebase
-  static Future<bool> setDeviceActivation(String deviceKey, bool isActivated) async {
+  /// Kích hoạt hoặc hủy kích hoạt / khóa thiết bị từ xa trên Firebase
+  static Future<bool> setDeviceActivation(String deviceKey, bool isActivated, {String? installCode}) async {
     try {
       final base = baseUrl;
       final encKey = Uri.encodeComponent(deviceKey);
+      final isBlocked = !isActivated;
       final patchPayload = {
         'isActivated': isActivated,
         'Đã kích hoạt': isActivated,
+        'isBlocked': isBlocked,
+        'Đã khóa': isBlocked,
+        'trangThai': isActivated ? 'Đã kích hoạt' : 'Đã khóa',
         'updatedAt': DateTime.now().toIso8601String(),
       };
       final res = await http.patch(
@@ -435,6 +439,22 @@ class ManagerApiService {
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode(patchPayload),
       ).timeout(const Duration(seconds: 8));
+
+      // Cập nhật song song node danh sách khóa và danh sách kích hoạt theo mã cài đặt
+      if (installCode != null && installCode.isNotEmpty && installCode != '--') {
+        final cleanCode = installCode.replaceAll(RegExp(r'[^A-Za-z0-9]'), '_');
+        await http.put(
+          Uri.parse('$base/vdm_gis/danh_sach_khoa/$cleanCode.json'),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode(isBlocked),
+        ).timeout(const Duration(seconds: 5)).catchError((_) => http.Response('', 500));
+
+        await http.put(
+          Uri.parse('$base/vdm_gis/danh_sach_kich_hoat/$cleanCode.json'),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode(isActivated),
+        ).timeout(const Duration(seconds: 5)).catchError((_) => http.Response('', 500));
+      }
 
       return res.statusCode == 200;
     } catch (_) {
