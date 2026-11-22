@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
+import '../constants/app_version.dart';
 
 class ManagerAppUpdateInfo {
   final int versionCode;
@@ -47,8 +48,8 @@ class ManagerAppUpdateInfo {
 }
 
 class ManagerAppUpdateService {
-  static const int currentVersionCode = 2;
-  static const String currentVersionName = "1.0.1";
+  static int get currentVersionCode => AppVersion.versionCode;
+  static String get currentVersionName => AppVersion.versionName;
   static const MethodChannel _installerChannel = MethodChannel('com.vdmgis.vn/app_installer');
 
   static const String defaultFirebaseBaseUrl =

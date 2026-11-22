@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../constants/app_version.dart';
 import '../services/manager_api_service.dart';
 import '../services/manager_app_update_service.dart';
 
@@ -342,7 +343,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     ),
                     const SizedBox(height: 12),
                     _buildAppInfoRow('Tên ứng dụng:', 'VDM Quản Lý (Admin Tool)'),
-                    _buildAppInfoRow('Phiên bản:', '1.0.2'),
+                    _buildAppInfoRow('Phiên bản:', AppVersion.versionName),
                     _buildAppInfoRow('Nhà phát triển:', 'Lê Minh'),
                     _buildAppInfoRow('Liên hệ:', 'leminh.vdm@gmail.com'),
                     _buildAppInfoRow('Hệ sinh thái:', 'VDM GIS - Lâm nghiệp 4.0'),
