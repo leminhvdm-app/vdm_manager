@@ -476,4 +476,43 @@ class ManagerApiService {
       return false;
     }
   }
+
+  /// Đẩy thông tin phát hành bản cập nhật cho VDM GIS lên Firebase
+  static Future<bool> publishAppUpdate({
+    required int versionCode,
+    required String versionName,
+    required String apkUrl,
+    required String releaseNotes,
+  }) async {
+    try {
+      final base = baseUrl;
+      final payload = {
+        'versionCode': versionCode,
+        'versionName': versionName,
+        'apkUrl': apkUrl,
+        'releaseNotes': releaseNotes,
+        'publishedAt': DateTime.now().toIso8601String(),
+      };
+      final res = await http.put(
+        Uri.parse('$base/vdm_gis/app_update.json'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode(payload),
+      ).timeout(const Duration(seconds: 8));
+      return res.statusCode == 200;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// Lấy thông tin bản cập nhật hiện tại của VDM GIS
+  static Future<Map<String, dynamic>?> getAppUpdate() async {
+    try {
+      final base = baseUrl;
+      final res = await http.get(Uri.parse('$base/vdm_gis/app_update.json')).timeout(const Duration(seconds: 6));
+      if (res.statusCode == 200 && res.body.isNotEmpty && res.body != 'null') {
+        return jsonDecode(res.body) as Map<String, dynamic>;
+      }
+    } catch (_) {}
+    return null;
+  }
 }
