@@ -1,3 +1,5 @@
+import '../services/manager_license_helper.dart';
+
 class InstalledDeviceItem {
   final String key;
   final String hoVaTen;
@@ -12,6 +14,9 @@ class InstalledDeviceItem {
   final String lanCuoiMoApp;
   final String tongTimesSuDung;
   final int tongSoLanMo;
+  final String maCaiDat;
+  final String maKichHoat;
+  final bool isActivated;
   final String updatedAt;
 
   InstalledDeviceItem({
@@ -28,10 +33,26 @@ class InstalledDeviceItem {
     required this.lanCuoiMoApp,
     required this.tongTimesSuDung,
     required this.tongSoLanMo,
+    required this.maCaiDat,
+    required this.maKichHoat,
+    required this.isActivated,
     required this.updatedAt,
   });
 
   factory InstalledDeviceItem.fromMap(String key, Map<String, dynamic> map) {
+    final rawMaCaiDat = map['Mã cài đặt'] as String? ??
+        map['maCaiDat'] as String? ??
+        map['installCode'] as String? ??
+        '--';
+
+    final isAct = map['isActivated'] as bool? ??
+        map['Đã kích hoạt'] as bool? ??
+        (map['trangThai'] == 'Đã kích hoạt');
+
+    final rawMaKichHoat = map['Mã kích hoạt'] as String? ??
+        map['maKichHoat'] as String? ??
+        (rawMaCaiDat != '--' ? ManagerLicenseHelper.generateActivationKey(rawMaCaiDat) : '--');
+
     return InstalledDeviceItem(
       key: key,
       hoVaTen: map['Họ và Tên'] as String? ?? map['hoVaTen'] as String? ?? key,
@@ -48,6 +69,9 @@ class InstalledDeviceItem {
       tongSoLanMo: (map['Tổng số lần mở app'] as num?)?.toInt() ??
           (map['tongSoLanMo'] as num?)?.toInt() ??
           0,
+      maCaiDat: rawMaCaiDat,
+      maKichHoat: rawMaKichHoat,
+      isActivated: isAct,
       updatedAt: map['updatedAt'] as String? ?? '',
     );
   }
@@ -66,6 +90,9 @@ class InstalledDeviceItem {
       'lanCuoiMoApp': lanCuoiMoApp,
       'tongTimesSuDung': tongTimesSuDung,
       'tongSoLanMo': tongSoLanMo,
+      'maCaiDat': maCaiDat,
+      'maKichHoat': maKichHoat,
+      'isActivated': isActivated,
       'updatedAt': updatedAt,
     };
   }

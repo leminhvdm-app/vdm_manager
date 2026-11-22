@@ -8,6 +8,7 @@ class UserSessionItem {
   final String dienThoai;
   final String thietBi;
   final String deviceTag;
+  final String maCaiDat;
   final String updatedAt;
 
   UserSessionItem({
@@ -20,6 +21,7 @@ class UserSessionItem {
     required this.dienThoai,
     required this.thietBi,
     required this.deviceTag,
+    required this.maCaiDat,
     required this.updatedAt,
   });
 
@@ -34,6 +36,7 @@ class UserSessionItem {
       dienThoai: map['Điện thoại'] as String? ?? map['dienThoai'] as String? ?? '--',
       thietBi: map['Thiết bị'] as String? ?? map['thietBi'] as String? ?? '--',
       deviceTag: map['deviceTag'] as String? ?? '',
+      maCaiDat: map['Mã cài đặt'] as String? ?? map['maCaiDat'] as String? ?? map['installCode'] as String? ?? '--',
       updatedAt: map['updatedAt'] as String? ?? '',
     );
   }
@@ -54,6 +57,7 @@ class UserUsageSummary {
   final int tongSoLanMo;
   final String lanCuoiHoatDong;
   final String deviceTag;
+  final String maCaiDat;
   final String updatedAt;
   final List<UserSessionItem> sessions;
 
@@ -72,6 +76,7 @@ class UserUsageSummary {
     required this.tongSoLanMo,
     required this.lanCuoiHoatDong,
     required this.deviceTag,
+    required this.maCaiDat,
     required this.updatedAt,
     required this.sessions,
   });
@@ -139,6 +144,11 @@ class UserUsageSummary {
         latestSession?.timesKetThuc ??
         '--';
     final tag = summaryMap?['deviceTag'] as String? ?? latestSession?.deviceTag ?? '';
+    final maCaiDat = summaryMap?['Mã cài đặt'] as String? ??
+        summaryMap?['maCaiDat'] as String? ??
+        summaryMap?['installCode'] as String? ??
+        latestSession?.maCaiDat ??
+        '--';
     final updateTime = summaryMap?['updatedAt'] as String? ?? latestSession?.updatedAt ?? '';
 
     return UserUsageSummary(
@@ -156,6 +166,7 @@ class UserUsageSummary {
       tongSoLanMo: openCount,
       lanCuoiHoatDong: lastActive,
       deviceTag: tag,
+      maCaiDat: maCaiDat,
       updatedAt: updateTime,
       sessions: sessionsList,
     );

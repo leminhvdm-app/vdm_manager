@@ -420,6 +420,28 @@ class ManagerApiService {
     }
   }
 
+  /// Kích hoạt hoặc hủy kích hoạt thiết bị từ xa trên Firebase
+  static Future<bool> setDeviceActivation(String deviceKey, bool isActivated) async {
+    try {
+      final base = baseUrl;
+      final encKey = Uri.encodeComponent(deviceKey);
+      final patchPayload = {
+        'isActivated': isActivated,
+        'Đã kích hoạt': isActivated,
+        'updatedAt': DateTime.now().toIso8601String(),
+      };
+      final res = await http.patch(
+        Uri.parse('$base/vdm_gis/thiet_bi_cai_dat/$encKey.json'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode(patchPayload),
+      ).timeout(const Duration(seconds: 8));
+
+      return res.statusCode == 200;
+    } catch (_) {
+      return false;
+    }
+  }
+
   /// Kiểm tra kết nối tới Firebase
   static Future<bool> testFirebaseConnection(String url) async {
     try {

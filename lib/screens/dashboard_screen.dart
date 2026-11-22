@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../models/user_usage_model.dart';
 import '../models/installed_device_model.dart';
 import '../models/cloud_dataset_model.dart';
@@ -734,6 +735,24 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
                                     ),
                                   ),
                                 ),
+                                if (user.maCaiDat.isNotEmpty && user.maCaiDat != '--') ...[
+                                  const SizedBox(width: 6),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFFF3E5F5),
+                                      borderRadius: BorderRadius.circular(4),
+                                    ),
+                                    child: Text(
+                                      user.maCaiDat,
+                                      style: const TextStyle(
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.bold,
+                                        color: Color(0xFF7B1FA2),
+                                      ),
+                                    ),
+                                  ),
+                                ],
                               ],
                             ),
                           ],
@@ -899,6 +918,125 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
                 ),
                 const SizedBox(height: 10),
                 const Divider(height: 1),
+                const SizedBox(height: 8),
+
+                // KHỐI MÃ CÀI ĐẶT & MÃ KÍCH HOẠT THIẾT BỊ
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: d.isActivated ? Colors.green.shade50 : Colors.amber.shade50,
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(
+                      color: d.isActivated ? Colors.green.shade300 : Colors.amber.shade400,
+                      width: 1.2,
+                    ),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Row(
+                            children: [
+                              Icon(Icons.qr_code_2_rounded, size: 18, color: d.isActivated ? Colors.green.shade800 : Colors.amber.shade900),
+                              const SizedBox(width: 6),
+                              Text(
+                                'Mã cài đặt: ${d.maCaiDat}',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 12.5,
+                                  color: d.isActivated ? Colors.green.shade900 : Colors.amber.shade900,
+                                ),
+                              ),
+                            ],
+                          ),
+                          IconButton(
+                            padding: EdgeInsets.zero,
+                            constraints: const BoxConstraints(minWidth: 26, minHeight: 26),
+                            icon: const Icon(Icons.copy_rounded, size: 16, color: Colors.grey),
+                            tooltip: 'Sao chép mã cài đặt',
+                            onPressed: () {
+                              Clipboard.setData(ClipboardData(text: d.maCaiDat));
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text('Đã sao chép Mã cài đặt!'), duration: Duration(seconds: 1)),
+                              );
+                            },
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Row(
+                            children: [
+                              const Icon(Icons.vpn_key_rounded, size: 18, color: Color(0xFF1B5E20)),
+                              const SizedBox(width: 6),
+                              Text(
+                                'Mã kích hoạt: ${d.maKichHoat}',
+                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF1B5E20)),
+                              ),
+                            ],
+                          ),
+                          IconButton(
+                            padding: EdgeInsets.zero,
+                            constraints: const BoxConstraints(minWidth: 26, minHeight: 26),
+                            icon: const Icon(Icons.copy_rounded, size: 16, color: Color(0xFF1B5E20)),
+                            tooltip: 'Sao chép mã kích hoạt gửi cán bộ',
+                            onPressed: () {
+                              Clipboard.setData(ClipboardData(text: d.maKichHoat));
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(content: Text('Đã sao chép Mã kích hoạt: ${d.maKichHoat}'), duration: const Duration(seconds: 2)),
+                              );
+                            },
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 6),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: d.isActivated ? Colors.green.shade700 : Colors.amber.shade800,
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Text(
+                              d.isActivated ? '✓ ĐÃ KÍCH HOẠT' : '🔒 CHƯA KÍCH HOẠT',
+                              style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+                            ),
+                          ),
+                          ElevatedButton.icon(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: d.isActivated ? Colors.grey.shade600 : const Color(0xFF1B5E20),
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                              minimumSize: const Size(0, 30),
+                            ),
+                            icon: Icon(d.isActivated ? Icons.lock_outline : Icons.lock_open_rounded, size: 14),
+                            label: Text(d.isActivated ? 'Khóa lại' : 'Duyệt kích hoạt', style: const TextStyle(fontSize: 11)),
+                            onPressed: () async {
+                              final scaffold = ScaffoldMessenger.of(context);
+                              final newStatus = !d.isActivated;
+                              final ok = await ManagerApiService.setDeviceActivation(d.key, newStatus);
+                              if (ok && mounted) {
+                                scaffold.showSnackBar(
+                                  SnackBar(
+                                    content: Text(newStatus ? 'Đã kích hoạt thiết bị của "${d.hoVaTen}"!' : 'Đã khóa thiết bị!'),
+                                    backgroundColor: const Color(0xFF1B5E20),
+                                  ),
+                                );
+                                _loadData();
+                              }
+                            },
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
                 const SizedBox(height: 8),
                 if (d.heDieuHanh.isNotEmpty)
                   _buildDeviceRow(Icons.system_update_alt_rounded, 'HĐH: ${d.heDieuHanh}'),
